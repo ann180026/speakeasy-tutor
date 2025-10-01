@@ -12,6 +12,7 @@ interface Language {
 }
 
 const languages: Language[] = [
+  { code: "english", name: "English", flag: "🇬🇧", description: "Master the global language of communication" },
   { code: "french", name: "French", flag: "🇫🇷", description: "Learn the language of love and culture" },
   { code: "spanish", name: "Spanish", flag: "🇪🇸", description: "Master one of the world's most spoken languages" },
   { code: "german", name: "German", flag: "🇩🇪", description: "Discover the language of innovation" },

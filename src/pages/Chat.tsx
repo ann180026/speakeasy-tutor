@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Send, Loader2, Bot, User } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Bot, User, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
@@ -20,9 +20,12 @@ const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const languageNames: Record<string, string> = {
+    english: "English 🇬🇧",
     french: "French 🇫🇷",
     spanish: "Spanish 🇪🇸",
     german: "German 🇩🇪",
@@ -41,6 +44,45 @@ const Chat = () => {
       content: `Hello! I'm your ${languageNames[language]} tutor. I'm here to help you learn through conversation. What would you like to talk about today?`
     }]);
   }, [language]);
+
+  const playAudio = async (text: string, index: number) => {
+    try {
+      setPlayingIndex(index);
+      
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: "Rachel" }
+      });
+
+      if (error) throw error;
+
+      if (data.audioContent) {
+        // Stop any currently playing audio
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+
+        // Create and play new audio
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          setPlayingIndex(null);
+          audioRef.current = null;
+        };
+        
+        await audio.play();
+      }
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      toast({
+        title: "Audio Error",
+        description: "Failed to play audio. Please try again.",
+        variant: "destructive",
+      });
+      setPlayingIndex(null);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -171,16 +213,31 @@ const Chat = () => {
                   </div>
                 )}
                 
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    message.role === "user"
-                      ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {message.content}
-                  </p>
+                <div className="flex flex-col gap-2 max-w-[80%]">
+                  <div
+                    className={`rounded-2xl px-4 py-3 ${
+                      message.role === "user"
+                        ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
+                  
+                  {message.role === "assistant" && message.content && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => playAudio(message.content, index)}
+                      disabled={playingIndex === index}
+                      className="self-start"
+                    >
+                      <Volume2 className={`w-4 h-4 mr-2 ${playingIndex === index ? 'animate-pulse' : ''}`} />
+                      {playingIndex === index ? 'Playing...' : 'Listen'}
+                    </Button>
+                  )}
                 </div>
 
                 {message.role === "user" && (
