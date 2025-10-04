@@ -62,13 +62,27 @@ const Chat = () => {
           audioRef.current = null;
         }
 
-        // Create and play new audio
-        const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+        // Create and play new audio using Blob for reliability
+        const byteCharacters = atob(data.audioContent as string);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
         audioRef.current = audio;
         
         audio.onended = () => {
           setPlayingIndex(null);
           audioRef.current = null;
+          URL.revokeObjectURL(url);
+        };
+        audio.onerror = () => {
+          setPlayingIndex(null);
+          audioRef.current = null;
+          URL.revokeObjectURL(url);
         };
         
         await audio.play();
